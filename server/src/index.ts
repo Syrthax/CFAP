@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import { adviseRoute } from './routes/advise.js';
 
 const server = Fastify({ logger: true });
 
@@ -12,6 +13,7 @@ await server.register(cors, {
 });
 
 server.get('/health', async () => ({ status: 'ok' }));
+await server.register(adviseRoute);
 
 const port = Number(process.env.PORT ?? 3001);
 await server.listen({ port, host: '127.0.0.1' });
