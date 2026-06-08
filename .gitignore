@@ -27,3 +27,6 @@ coverage/
 
 # Build plan (not part of submission codebase)
 instructions.md
+
+# Generated preview (only PNG is committed)
+docs/preview.html
