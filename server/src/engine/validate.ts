@@ -37,3 +37,37 @@ export const AdviseRequestSchema = z.object({
 });
 
 export type AdviseRequestInput = z.infer<typeof AdviseRequestSchema>;
+
+// ── /chat ────────────────────────────────────────────────────────────────
+const CategoryEnum = z.enum(['transport', 'diet', 'energy', 'goods']);
+
+const SignalsSchema = z.object({
+  annualCo2eByCategory: z.object({ transport: z.number(), diet: z.number(), energy: z.number(), goods: z.number() }),
+  totalAnnualCo2e: z.number(),
+  topCategory: CategoryEnum,
+  vsRegionalAvg: z.number(),
+});
+
+const ActionPlanSchema = z.object({
+  recommendations: z.array(z.object({
+    id: z.string(),
+    category: CategoryEnum,
+    title: z.string(),
+    annualSavingCo2e: z.number(),
+    effort: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+    score: z.number(),
+  })),
+  projectedTotalCo2e: z.number(),
+  trace: z.array(z.object({ ruleId: z.string(), reason: z.string(), fired: z.boolean() })),
+});
+
+export const ChatRequestSchema = z.object({
+  question: z.string().min(1).max(500).trim(),
+  signals: SignalsSchema,
+  plan: ActionPlanSchema,
+});
+
+export type ChatRequestInput = z.infer<typeof ChatRequestSchema>;
+
+// LLM output must conform to this — repair-or-reject on failure
+export const LlmOutputSchema = z.object({ reply: z.string().min(1).max(2000) });

@@ -1,4 +1,5 @@
 import type { AdviseResponse } from '../lib/types';
+import { Chat } from './Chat';
 
 interface Props {
   result: AdviseResponse;
@@ -20,6 +21,8 @@ export function ResultsPanel({ result, onReset }: Props) {
   const { signals, plan } = result;
   const topRecs = plan.recommendations.slice(0, 3);
   const savingTotal = topRecs.reduce((s, r) => s + r.annualSavingCo2e, 0);
+  const sortedCats = (Object.entries(signals.annualCo2eByCategory) as [string, number][])
+    .sort(([, a], [, b]) => b - a);
 
   return (
     <div className="results-panel">
@@ -40,26 +43,50 @@ export function ResultsPanel({ result, onReset }: Props) {
         </div>
       </header>
 
+      {/* Footprint breakdown — bar chart with accessible data table */}
       <section aria-labelledby="breakdown-heading">
         <h3 id="breakdown-heading">Footprint breakdown</h3>
-        <ul className="breakdown-list" role="list">
-          {(Object.entries(signals.annualCo2eByCategory) as [string, number][])
-            .sort(([, a], [, b]) => b - a)
-            .map(([cat, kg]) => {
-              const pct = Math.round((kg / signals.totalAnnualCo2e) * 100);
-              return (
-                <li key={cat}>
-                  <span className="cat-label">{CATEGORY_LABELS[cat]}</span>
-                  <div className="bar-track" role="img" aria-label={`${CATEGORY_LABELS[cat]}: ${fmt(kg)}, ${pct}%`}>
-                    <div className={`bar-fill cat-${cat}`} style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="cat-value">{fmt(kg)}</span>
-                </li>
-              );
-            })}
+
+        {/* Visual bars */}
+        <ul className="breakdown-list" role="list" aria-label="Footprint breakdown by category">
+          {sortedCats.map(([cat, kg]) => {
+            const pct = Math.round((kg / signals.totalAnnualCo2e) * 100);
+            return (
+              <li key={cat}>
+                <span className="cat-label">{CATEGORY_LABELS[cat]}</span>
+                <div className="bar-track" aria-hidden="true">
+                  <div className={`bar-fill cat-${cat}`} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="cat-value">{fmt(kg)}</span>
+              </li>
+            );
+          })}
         </ul>
+
+        {/* Visually-hidden data table — axe / screen-reader equivalent */}
+        <table className="sr-only" aria-label="Footprint breakdown data table">
+          <caption>Annual CO₂e by category</caption>
+          <thead>
+            <tr><th scope="col">Category</th><th scope="col">kg CO₂e / year</th><th scope="col">% of total</th></tr>
+          </thead>
+          <tbody>
+            {sortedCats.map(([cat, kg]) => (
+              <tr key={cat}>
+                <td>{CATEGORY_LABELS[cat]}</td>
+                <td>{Math.round(kg)}</td>
+                <td>{Math.round((kg / signals.totalAnnualCo2e) * 100)}%</td>
+              </tr>
+            ))}
+            <tr>
+              <th scope="row">Total</th>
+              <td>{Math.round(signals.totalAnnualCo2e)}</td>
+              <td>100%</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
+      {/* Recommendations */}
       <section aria-labelledby="recs-heading">
         <h3 id="recs-heading">Top recommendations for you</h3>
         <ol className="recs-list">
@@ -76,6 +103,7 @@ export function ResultsPanel({ result, onReset }: Props) {
         </ol>
       </section>
 
+      {/* Decision trace — the "Why these?" panel */}
       <section aria-labelledby="trace-heading">
         <h3 id="trace-heading">Why these? (decision trace)</h3>
         <p className="trace-intro">Every rule was evaluated. Here's what fired and what was skipped — and why.</p>
@@ -89,6 +117,9 @@ export function ResultsPanel({ result, onReset }: Props) {
           ))}
         </ul>
       </section>
+
+      {/* Chat follow-up */}
+      <Chat signals={signals} plan={plan} />
 
       <button className="reset-btn" onClick={onReset}>Start over</button>
     </div>
