@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command' | grep -qE '(git checkout -b|git branch [^-])' && echo '{\"continue\":false,\"stopReason\":\"BLOCKED: Single-branch rule — this repo must stay on main only (competition submission constraint). Never create branches.\"}' || true",
+            "timeout": 5,
+            "statusMessage": "Checking branch guard..."
+          }
+        ]
+      }
+    ]
+  }
+}
