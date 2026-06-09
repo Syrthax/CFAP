@@ -70,11 +70,11 @@ npm ci
 ### 2. Configure environment
 
 ```bash
-cp server/.env.example server/.env
+cp .env.example server/.env
 # Edit server/.env — set ANTHROPIC_API_KEY and optionally CORS_ORIGIN
 ```
 
-`server/.env.example` contains all required variables with placeholder values.
+`.env.example` at the repo root contains all required variables with placeholder values.
 
 ### 3. Run the backend
 
