@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { AdviseRequestSchema } from '../server/src/engine/validate.js';
 import { computeSignals } from '../server/src/engine/footprint.js';
 import { decide } from '../server/src/engine/policy.js';
-import type { AdviseResponse } from '../server/src/engine/types.js';
+import type { Profile, UserState, AdviseResponse } from '../server/src/engine/types.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -14,7 +14,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
 
-  const { profile, state } = parsed.data;
+  // zod has already validated shape; cast to engine types for TypeScript
+  const { profile, state } = parsed.data as { profile: Profile; state: UserState };
   const signals = computeSignals(profile, state);
   const plan = decide(profile, state, signals);
 
