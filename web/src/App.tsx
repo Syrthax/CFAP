@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { IntakeForm } from './components/IntakeForm';
 import { ResultsPanel } from './components/ResultsPanel';
 import { fetchAdvise } from './lib/api';
@@ -9,6 +9,13 @@ export default function App() {
   const [result, setResult] = useState<AdviseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (result) {
+      mainRef.current?.focus();
+    }
+  }, [result]);
 
   async function handleSubmit(data: AdviseRequest) {
     setLoading(true);
@@ -30,6 +37,8 @@ export default function App() {
 
   return (
     <>
+      <a href="#main" className="skip-link">Skip to main content</a>
+
       <header className="site-header">
         <div className="site-header-inner">
           <span className="site-logo" aria-hidden="true">🌱</span>
@@ -40,7 +49,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className="main-content" id="main">
+      <nav className="sr-only" aria-label="Page navigation">
+        <a href="#main">Skip to main content</a>
+      </nav>
+
+      <main ref={mainRef} tabIndex={-1} className="main-content" id="main">
         {error && (
           <div className="error-banner" role="alert" aria-live="assertive">
             {error}
