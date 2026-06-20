@@ -12,8 +12,8 @@ import {
 
 function computeTransport(state: UserState['transport']): number {
   const { carType, kmPerWeek, flightsPerYear } = state;
-  const carFactor = CAR_FACTORS[carType]?.kgCo2ePerKm ?? 0;
-  const carAnnual = kmPerWeek * 52 * carFactor;
+  // carType is zod-validated to a known key; CAR_FACTORS.none.kgCo2ePerKm === 0
+  const carAnnual       = kmPerWeek * 52 * CAR_FACTORS[carType].kgCo2ePerKm;
   const shortHaulAnnual = flightsPerYear.shortHaul * FLIGHT_FACTORS.shortHaul.kgCo2ePerPassengerReturn;
   const longHaulAnnual  = flightsPerYear.longHaul  * FLIGHT_FACTORS.longHaul.kgCo2ePerPassengerReturn;
   return carAnnual + shortHaulAnnual + longHaulAnnual;
@@ -34,30 +34,34 @@ function computeDiet(diet: UserState['diet']): number {
 function computeEnergy(energy: UserState['energy'], region: string): number {
   const { kwhPerMonth, heating } = energy;
   const grid = GRID_INTENSITY[region] ?? DEFAULT_GRID;
-  let factor: number;
 
+  let factor: number;
   if (heating === 'electric') {
     factor = grid.kgCo2ePerKwh;
   } else if (heating === 'heatpump') {
     factor = grid.kgCo2ePerKwh / HEATING_FACTORS.heatpump.cop;
   } else {
-    factor = HEATING_FACTORS[heating as 'gas' | 'other'].kgCo2ePerKwh;
+    // heating is 'gas' | 'other' after eliminating the two grid-intensity cases
+    factor = HEATING_FACTORS[heating].kgCo2ePerKwh;
   }
 
   return kwhPerMonth * 12 * factor;
 }
 
 function computeGoods(profile: Profile): number {
-  const perPerson = GOODS_FACTORS[profile.homeType]?.kgCo2ePerPersonPerYear
-    ?? GOODS_FACTORS.house.kgCo2ePerPersonPerYear;
-  return profile.householdSize * perPerson;
+  // homeType is zod-validated to 'apartment' | 'house', both keys always present
+  return profile.householdSize * GOODS_FACTORS[profile.homeType].kgCo2ePerPersonPerYear;
 }
 
 function topCategory(cats: Record<Category, number>): Category {
-  return (Object.entries(cats) as [Category, number][])
-    .reduce((best, [cat, kg]) => (kg > cats[best] ? cat : best), 'transport' as Category);
+  let best: Category = 'transport';
+  for (const [cat, kg] of Object.entries(cats) as [Category, number][]) {
+    if (kg > cats[best]) best = cat;
+  }
+  return best;
 }
 
+/** Compute per-category and total annual CO₂e for a household, plus regional comparison. */
 export function computeSignals(profile: Profile, state: UserState): Signals {
   const transport = computeTransport(state.transport);
   const diet      = computeDiet(state.diet);

@@ -1,6 +1,7 @@
 import type { Profile, UserState, Signals, ActionPlan } from './types.js';
 import { evaluateRules } from './rules.js';
 
+/** Rank recommendations by score and compute the projected footprint after the top 3 actions. */
 export function decide(profile: Profile, state: UserState, signals: Signals): ActionPlan {
   const { recommendations, trace } = evaluateRules(profile, state, signals);
 

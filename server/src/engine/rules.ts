@@ -307,6 +307,11 @@ export const RULES: Rule[] = [
   },
 ];
 
+/**
+ * Evaluate every rule against the user context.
+ * Every rule produces a TraceStep regardless of whether it fired.
+ * Score formula: (annualSavingCo2e / effort) × 1.5 if rule.category === topCategory else 1.
+ */
 export function evaluateRules(
   profile: Profile,
   state: UserState,

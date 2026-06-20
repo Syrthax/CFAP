@@ -2,8 +2,6 @@ type Factor = { source: string; year: number };
 
 // ── Transport ──────────────────────────────────────────────────────────────
 // DEFRA Greenhouse Gas Conversion Factors 2024, Table 3a (passenger vehicles)
-export const CAR_KG_CO2E_PER_KM: Record<string, number & Factor> = {} as never;
-
 export const CAR_FACTORS: Record<string, { kgCo2ePerKm: number } & Factor> = {
   petrol: { kgCo2ePerKm: 0.1727, source: 'DEFRA 2024', year: 2024 },
   diesel: { kgCo2ePerKm: 0.1632, source: 'DEFRA 2024', year: 2024 },
@@ -51,13 +49,13 @@ export const DEFAULT_GRID = GRID_INTENSITY['Other'];
 
 // ── Heating (kgCO₂e / kWh of delivered energy) ───────────────────────────
 // Gas and "other" from DEFRA 2024 Table 1 (natural gas, gross calorific value).
-// Heat pump treated as electric / COP; COP = 3.0 is conservative UK average.
+// Electric uses regional grid intensity directly (see computeEnergy).
+// Heat pump COP = 3.0 is a conservative UK average (DEFRA 2024).
 export const HEATING_FACTORS = {
-  gas:       { kgCo2ePerKwh: 0.18288, source: 'DEFRA 2024', year: 2024 },
-  other:     { kgCo2ePerKwh: 0.18288, source: 'DEFRA 2024 (gas proxy)', year: 2024 },
-  electric:  { usesGridIntensity: true as const, source: 'DEFRA 2024', year: 2024 },
-  heatpump:  { usesGridIntensity: true as const, cop: 3.0, source: 'DEFRA 2024', year: 2024 },
-};
+  gas:      { kgCo2ePerKwh: 0.18288, source: 'DEFRA 2024', year: 2024 },
+  other:    { kgCo2ePerKwh: 0.18288, source: 'DEFRA 2024 (gas proxy)', year: 2024 },
+  heatpump: { cop: 3.0,              source: 'DEFRA 2024', year: 2024 },
+} as const;
 
 // Effective emissions intensity of a green-tariff electricity contract
 export const GREEN_TARIFF_KG_CO2E_PER_KWH = 0.05;
