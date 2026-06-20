@@ -6,6 +6,9 @@
     "web",
     "server"
   ],
+  "devDependencies": {
+    "@vercel/node": "^5.1.8"
+  },
   "scripts": {
     "dev:web": "npm run dev --workspace=web",
     "dev:server": "npm run dev --workspace=server",

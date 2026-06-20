@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npm run build --workspace=web",
+  "outputDirectory": "web/dist",
+  "rewrites": [
+    { "source": "/advise", "destination": "/api/advise" },
+    { "source": "/chat", "destination": "/api/chat" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
