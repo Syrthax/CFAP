@@ -13,6 +13,7 @@ interface Props {
 }
 
 export function Chat({ signals, plan }: Props) {
+  const [apiKey, setApiKey] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,7 @@ export function Chat({ signals, plan }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = input.trim();
-    if (!q || loading) return;
+    if (!q || loading || !apiKey.trim()) return;
 
     setMessages(prev => [...prev, { role: 'user', text: q }]);
     setInput('');
@@ -36,18 +37,51 @@ export function Chat({ signals, plan }: Props) {
     setError(null);
 
     try {
-      const { reply } = await fetchChat({ question: q, signals, plan });
+      const { reply } = await fetchChat({ question: q, signals, plan, apiKey: apiKey.trim() });
       setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      const msg = err instanceof Error ? err.message : 'Something went wrong.';
+      if (msg.includes('API key required') || msg.includes('401') || msg.includes('auth')) {
+        setApiKey('');
+        setError('API key was rejected. Please check your key and try again.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
   }
 
+  const hasKey = apiKey.trim().length > 0;
+
   return (
     <section className="chat-panel" aria-labelledby="chat-heading">
       <h3 id="chat-heading">Ask a follow-up question</h3>
+
+      <div className="chat-key-panel">
+        <label htmlFor="chat-api-key" className="chat-key-label">
+          Anthropic API key
+        </label>
+        <input
+          id="chat-api-key"
+          type="password"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          placeholder="sk-ant-..."
+          maxLength={300}
+          className="chat-key-input"
+          aria-describedby="chat-key-desc"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <p id="chat-key-desc" className="chat-key-desc">
+          Your key is used only for this session and never stored. Get one at{' '}
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+            console.anthropic.com
+          </a>.
+        </p>
+      </div>
+
       <p className="chat-intro">
         Ask why a rule was skipped, what the numbers mean, or how to get started.
         All figures come from the engine above — the advisor will not invent new numbers.
@@ -86,13 +120,13 @@ export function Chat({ signals, plan }: Props) {
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="e.g. Why wasn't cycling suggested for me?"
-          disabled={loading}
+          placeholder={hasKey ? 'e.g. Why wasn\'t cycling suggested for me?' : 'Enter your API key above to chat'}
+          disabled={loading || !hasKey}
           maxLength={500}
           aria-describedby={loading ? 'chat-status' : undefined}
           className="chat-input"
         />
-        <button type="submit" disabled={loading || !input.trim()} className="chat-submit">
+        <button type="submit" disabled={loading || !input.trim() || !hasKey} className="chat-submit">
           {loading ? 'Sending…' : 'Ask'}
         </button>
         {loading && <span id="chat-status" className="sr-only">Waiting for response…</span>}

@@ -27,15 +27,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid input', details: parsed.error.flatten() });
   }
 
-  const { question, signals, plan } = parsed.data;
+  const { question, signals, plan, apiKey } = parsed.data;
   const systemPrompt = buildSystemPrompt(signals, plan);
 
   try {
-    const raw = await callLlm(systemPrompt, question);
+    const raw = await callLlm(systemPrompt, question, apiKey);
     const text = parseReply(raw);
     return res.status(200).json({ reply: text });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'LLM unavailable';
+    if (msg === 'NO_API_KEY') {
+      return res.status(400).json({ error: 'API key required. Enter your Anthropic API key in the chat panel.' });
+    }
     return res.status(200).json({ reply: FALLBACK, _error: msg });
   }
 }

@@ -28,17 +28,19 @@ export async function chatRoute(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid input', details: parsed.error.flatten() });
     }
 
-    const { question, signals, plan } = parsed.data;
+    const { question, signals, plan, apiKey } = parsed.data;
     const systemPrompt = buildSystemPrompt(signals, plan);
 
     try {
-      const raw = await callLlm(systemPrompt, question);
+      const raw = await callLlm(systemPrompt, question, apiKey);
       const text = parseReply(raw);
       return reply.send({ reply: text });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'LLM unavailable';
+      if (msg === 'NO_API_KEY') {
+        return reply.status(400).send({ error: 'API key required. Enter your Anthropic API key in the chat panel.' });
+      }
       app.log.error({ err }, 'LLM call failed');
-      // Return 200 with fallback so the UI doesn't break — the user gets a safe message
       return reply.send({ reply: FALLBACK, _error: msg });
     }
   });

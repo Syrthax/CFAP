@@ -65,6 +65,7 @@ export const ChatRequestSchema = z.object({
   question: z.string().min(1).max(500).trim(),
   signals: SignalsSchema,
   plan: ActionPlanSchema,
+  apiKey: z.string().min(1).max(300).optional(),
 });
 
 export type ChatRequestInput = z.infer<typeof ChatRequestSchema>;

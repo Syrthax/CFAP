@@ -222,6 +222,26 @@
 .reset-btn:hover { background: var(--color-border); }
 .reset-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
+/* Chat key panel */
+.chat-key-panel {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+}
+.chat-key-label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem; }
+.chat-key-input {
+  width: 100%; padding: 0.45rem 0.7rem;
+  border: 1px solid var(--color-border); border-radius: 5px;
+  background: var(--color-surface); color: var(--color-text);
+  font-size: 0.875rem; font-family: ui-monospace, monospace;
+  box-sizing: border-box;
+}
+.chat-key-input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+.chat-key-desc { font-size: 0.75rem; color: var(--color-text-muted); margin: 0.375rem 0 0; }
+.chat-key-desc a { color: var(--color-primary); }
+
 /* Chat */
 .chat-panel {
   background: var(--color-surface);

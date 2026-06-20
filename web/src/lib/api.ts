@@ -6,6 +6,7 @@ export interface ChatRequest {
   question: string;
   signals: AdviseResponse['signals'];
   plan: AdviseResponse['plan'];
+  apiKey?: string;
 }
 
 export async function fetchChat(body: ChatRequest): Promise<{ reply: string }> {
