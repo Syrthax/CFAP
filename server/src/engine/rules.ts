@@ -9,7 +9,20 @@ import {
   GREEN_TARIFF_KG_CO2E_PER_KWH,
   ENERGY_BENCHMARK_KWH_PER_PERSON_PER_MONTH,
   GOODS_FACTORS,
+  WEEKS_PER_YEAR,
+  MONTHS_PER_YEAR,
 } from './factors.js';
+
+// ── Rule tuning parameters ─────────────────────────────────────────────────
+// Behavioral assumptions (not cited emission factors). Centralized so the
+// thresholds and reduction fractions that drive recommendations are auditable.
+const SHORT_TRIP_SHIFT_FRACTION = 0.30; // share of car km realistically replaceable by bike/walk
+const SHORT_TRIP_MIN_KM_PER_WEEK = 30;  // below this, shifting trips isn't worth recommending
+const EV_MIN_KM_PER_WEEK = 100;         // mileage at which an EV switch pays off
+const RED_MEAT_TRIGGER_DAYS = 3;        // red-meat days/week that make the rule fire
+const RED_MEAT_TARGET_DAYS = 1;         // days/week the recommendation targets
+const ENERGY_REDUCTION_FRACTION = 0.12; // achievable behavioral cut (thermostat + LED)
+const GOODS_REDUCTION_FRACTION = 0.12;  // achievable cut from secondhand/repair habits
 
 type Fired   = { fired: true;  rec: Omit<Recommendation, 'score'>; traceReason: string };
 type Skipped = { fired: false; traceReason: string };
@@ -22,6 +35,9 @@ interface Rule {
   evaluate(profile: Profile, state: UserState, signals: Signals): RuleResult;
 }
 
+const TOP_CATEGORY_WEIGHT = 1.5;
+const DEFAULT_CATEGORY_WEIGHT = 1;
+
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const fmt = (kg: number) => `${Math.round(kg)} kg CO₂e`;
 
@@ -33,7 +49,6 @@ export const RULES: Rule[] = [
     effort: 2,
     evaluate(_p, state, signals) {
       const { carType, kmPerWeek, cyclesRegularly } = state.transport;
-      const transportPct = signals.annualCo2eByCategory.transport / signals.totalAnnualCo2e;
 
       if (cyclesRegularly) {
         return { fired: false, traceReason: 'You already cycle regularly — rule skipped.' };
@@ -41,11 +56,12 @@ export const RULES: Rule[] = [
       if (carType === 'none') {
         return { fired: false, traceReason: 'No car in use — rule skipped.' };
       }
-      if (kmPerWeek < 30) {
-        return { fired: false, traceReason: `Low weekly mileage (${kmPerWeek} km/wk < 30 threshold) — rule skipped.` };
+      if (kmPerWeek < SHORT_TRIP_MIN_KM_PER_WEEK) {
+        return { fired: false, traceReason: `Low weekly mileage (${kmPerWeek} km/wk < ${SHORT_TRIP_MIN_KM_PER_WEEK} threshold) — rule skipped.` };
       }
 
-      const saving = Math.round(kmPerWeek * 52 * 0.30 * (CAR_FACTORS[carType]?.kgCo2ePerKm ?? 0));
+      const transportPct = signals.annualCo2eByCategory.transport / signals.totalAnnualCo2e;
+      const saving = Math.round(kmPerWeek * WEEKS_PER_YEAR * SHORT_TRIP_SHIFT_FRACTION * CAR_FACTORS[carType].kgCo2ePerKm);
       return {
         fired: true,
         traceReason: `Transport is ${pct(transportPct)} of your footprint and you don't cycle yet.`,
@@ -120,19 +136,19 @@ export const RULES: Rule[] = [
       if (carType !== 'petrol' && carType !== 'diesel') {
         return { fired: false, traceReason: 'Car is not petrol/diesel — EV switch rule skipped.' };
       }
-      if (kmPerWeek < 100) {
-        return { fired: false, traceReason: `Weekly mileage (${kmPerWeek} km) below threshold for EV switch to be cost-effective — rule skipped.` };
+      if (kmPerWeek < EV_MIN_KM_PER_WEEK) {
+        return { fired: false, traceReason: `Weekly mileage (${kmPerWeek} km < ${EV_MIN_KM_PER_WEEK} threshold) below the point where an EV switch is cost-effective — rule skipped.` };
       }
-      const delta = (CAR_FACTORS[carType].kgCo2ePerKm - CAR_FACTORS.ev.kgCo2ePerKm);
-      const saving = Math.round(kmPerWeek * 52 * delta);
+      const delta = CAR_FACTORS[carType].kgCo2ePerKm - CAR_FACTORS.ev.kgCo2ePerKm;
+      const annualSaving = Math.round(kmPerWeek * WEEKS_PER_YEAR * delta);
       return {
         fired: true,
-        traceReason: `High-mileage ${carType} car (${kmPerWeek} km/wk); EV saves ${fmt(delta * kmPerWeek * 52)}/yr.`,
+        traceReason: `High-mileage ${carType} car (${kmPerWeek} km/wk); EV saves ${fmt(annualSaving)}/yr.`,
         rec: {
           id: 'switch-to-ev',
           category: 'transport',
           title: 'Switch to an electric vehicle',
-          annualSavingCo2e: saving,
+          annualSavingCo2e: annualSaving,
           effort: 3,
         },
       };
@@ -149,13 +165,12 @@ export const RULES: Rule[] = [
       if (vegetarian) {
         return { fired: false, traceReason: 'Vegetarian diet — red meat rule skipped.' };
       }
-      if (redMeatDaysPerWeek < 3) {
-        return { fired: false, traceReason: `Red meat ${redMeatDaysPerWeek}×/wk (below 3-day trigger) — rule skipped.` };
+      if (redMeatDaysPerWeek < RED_MEAT_TRIGGER_DAYS) {
+        return { fired: false, traceReason: `Red meat ${redMeatDaysPerWeek}×/wk (below ${RED_MEAT_TRIGGER_DAYS}-day trigger) — rule skipped.` };
       }
-      const targetDays = 1;
-      const reducedDays = redMeatDaysPerWeek - targetDays;
+      const reducedDays = redMeatDaysPerWeek - RED_MEAT_TARGET_DAYS;
       const saving = Math.round(
-        reducedDays * (DIET_FACTORS.redMeatDay.kgCo2ePerDay - DIET_FACTORS.vegDay.kgCo2ePerDay) * 52,
+        reducedDays * (DIET_FACTORS.redMeatDay.kgCo2ePerDay - DIET_FACTORS.vegDay.kgCo2ePerDay) * WEEKS_PER_YEAR,
       );
       return {
         fired: true,
@@ -163,7 +178,7 @@ export const RULES: Rule[] = [
         rec: {
           id: 'reduce-red-meat',
           category: 'diet',
-          title: `Cut red meat from ${redMeatDaysPerWeek} to 1 day per week`,
+          title: `Cut red meat from ${redMeatDaysPerWeek} to ${RED_MEAT_TARGET_DAYS} day per week`,
           annualSavingCo2e: saving,
           effort: 2,
         },
@@ -209,11 +224,11 @@ export const RULES: Rule[] = [
       const grid = GRID_INTENSITY[profile.region] ?? DEFAULT_GRID;
       const factor = heating === 'electric' || heating === 'heatpump'
         ? grid.kgCo2ePerKwh
-        : HEATING_FACTORS['gas'].kgCo2ePerKwh;
-      const saving = Math.round(kwhPerMonth * 12 * 0.12 * factor);
+        : HEATING_FACTORS.gas.kgCo2ePerKwh;
+      const saving = Math.round(kwhPerMonth * MONTHS_PER_YEAR * ENERGY_REDUCTION_FRACTION * factor);
       return {
         fired: true,
-        traceReason: `Energy use (${kwhPerMonth} kWh/mo) above benchmark of ${benchmark} kWh/mo for ${profile.householdSize} people. A 12% reduction saves ~${fmt(saving)}.`,
+        traceReason: `Energy use (${kwhPerMonth} kWh/mo) above benchmark of ${benchmark} kWh/mo for ${profile.householdSize} people. A ${Math.round(ENERGY_REDUCTION_FRACTION * 100)}% reduction saves ~${fmt(saving)}.`,
         rec: {
           id: 'efficiency-behavioral',
           category: 'energy',
@@ -237,7 +252,7 @@ export const RULES: Rule[] = [
       const grid = GRID_INTENSITY[profile.region] ?? DEFAULT_GRID;
       const gasFactor = HEATING_FACTORS.gas.kgCo2ePerKwh;
       const hpFactor  = grid.kgCo2ePerKwh / HEATING_FACTORS.heatpump.cop;
-      const saving = Math.round(kwhPerMonth * 12 * (gasFactor - hpFactor));
+      const saving = Math.round(kwhPerMonth * MONTHS_PER_YEAR * (gasFactor - hpFactor));
       return {
         fired: true,
         traceReason: `Gas heating at ${gasFactor} kgCO₂e/kWh vs heat pump at ${hpFactor.toFixed(4)} kgCO₂e/kWh — saves ${fmt(saving)}/yr.`,
@@ -265,7 +280,7 @@ export const RULES: Rule[] = [
         return { fired: false, traceReason: `Grid in ${profile.region} is not classified as dirty (${grid.kgCo2ePerKwh} kgCO₂e/kWh) — green tariff rule skipped.` };
       }
       const { kwhPerMonth } = state.energy;
-      const saving = Math.round(kwhPerMonth * 12 * (grid.kgCo2ePerKwh - GREEN_TARIFF_KG_CO2E_PER_KWH));
+      const saving = Math.round(kwhPerMonth * MONTHS_PER_YEAR * (grid.kgCo2ePerKwh - GREEN_TARIFF_KG_CO2E_PER_KWH));
       return {
         fired: true,
         traceReason: `Dirty grid (${grid.kgCo2ePerKwh} kgCO₂e/kWh in ${profile.region}); green tariff reduces effective intensity to ~0.05 kgCO₂e/kWh.`,
@@ -289,9 +304,9 @@ export const RULES: Rule[] = [
       if (signals.topCategory !== 'goods') {
         return { fired: false, traceReason: `Goods (${Math.round(signals.annualCo2eByCategory.goods)} kg) is not your top category — rule skipped.` };
       }
-      const baseline = GOODS_FACTORS[profile.homeType]?.kgCo2ePerPersonPerYear
-        ?? GOODS_FACTORS.house.kgCo2ePerPersonPerYear;
-      const saving = Math.round(baseline * profile.householdSize * 0.12);
+      // homeType is zod-validated to 'apartment' | 'house', both keys always present
+      const baseline = GOODS_FACTORS[profile.homeType].kgCo2ePerPersonPerYear;
+      const saving = Math.round(baseline * profile.householdSize * GOODS_REDUCTION_FRACTION);
       return {
         fired: true,
         traceReason: 'Goods & consumption is your largest category — buying secondhand and avoiding fast fashion is a high-impact lever.',
@@ -323,7 +338,7 @@ export function evaluateRules(
   for (const rule of RULES) {
     const result = rule.evaluate(profile, state, signals);
     if (result.fired) {
-      const categoryWeight = rule.category === signals.topCategory ? 1.5 : 1;
+      const categoryWeight = rule.category === signals.topCategory ? TOP_CATEGORY_WEIGHT : DEFAULT_CATEGORY_WEIGHT;
       const score = (result.rec.annualSavingCo2e / rule.effort) * categoryWeight;
       recommendations.push({ ...result.rec, score: Math.round(score) });
       trace.push({ ruleId: rule.id, reason: result.traceReason, fired: true });

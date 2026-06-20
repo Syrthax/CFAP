@@ -199,7 +199,18 @@ server/tests/validate.test.ts    15 tests
   ✓ redMeatDaysPerWeek=9 rejected (max 7)
   ✓ householdSize=0 / 25 rejected (range 1–20)
   ✓ kwhPerMonth=15000 rejected (max 10000)
+
+web/src/components/ResultsPanel.test.tsx    4 tests
+  ✓ Total and projected footprint render
+  ✓ Regional-average comparison renders
+  ✓ "Why these?" trace shows fired AND skipped rules with reasons
+  ✓ Chart has a visually-hidden data-table equivalent (accessibility)
 ```
+
+The engine layer (footprint, policy, validation) carries the deterministic
+logic and is unit-tested in isolation. The frontend test covers the
+highest-value UI — the decision trace and its accessible data table —
+using Testing Library against a mock `AdviseResponse`.
 
 ---
 

@@ -1,5 +1,10 @@
 type Factor = { source: string; year: number };
 
+// ── Temporal constants ─────────────────────────────────────────────────────
+// Used to annualize weekly and monthly inputs across the engine.
+export const WEEKS_PER_YEAR = 52;
+export const MONTHS_PER_YEAR = 12;
+
 // ── Transport ──────────────────────────────────────────────────────────────
 // DEFRA Greenhouse Gas Conversion Factors 2024, Table 3a (passenger vehicles)
 export const CAR_FACTORS: Record<string, { kgCo2ePerKm: number } & Factor> = {

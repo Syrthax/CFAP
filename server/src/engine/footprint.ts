@@ -8,12 +8,16 @@ import {
   DIET_FACTORS,
   GOODS_FACTORS,
   REGIONAL_AVERAGES,
+  WEEKS_PER_YEAR,
+  MONTHS_PER_YEAR,
 } from './factors.js';
+
+const DAYS_PER_WEEK = 7;
 
 function computeTransport(state: UserState['transport']): number {
   const { carType, kmPerWeek, flightsPerYear } = state;
   // carType is zod-validated to a known key; CAR_FACTORS.none.kgCo2ePerKm === 0
-  const carAnnual       = kmPerWeek * 52 * CAR_FACTORS[carType].kgCo2ePerKm;
+  const carAnnual       = kmPerWeek * WEEKS_PER_YEAR * CAR_FACTORS[carType].kgCo2ePerKm;
   const shortHaulAnnual = flightsPerYear.shortHaul * FLIGHT_FACTORS.shortHaul.kgCo2ePerPassengerReturn;
   const longHaulAnnual  = flightsPerYear.longHaul  * FLIGHT_FACTORS.longHaul.kgCo2ePerPassengerReturn;
   return carAnnual + shortHaulAnnual + longHaulAnnual;
@@ -21,14 +25,14 @@ function computeTransport(state: UserState['transport']): number {
 
 function computeDiet(diet: UserState['diet']): number {
   const { redMeatDaysPerWeek, dairyHeavy, vegetarian } = diet;
-  // If vegetarian, all 7 days are veg days regardless of redMeatDaysPerWeek
+  // If vegetarian, all days are veg days regardless of redMeatDaysPerWeek
   const meatDays = vegetarian ? 0 : redMeatDaysPerWeek;
-  const vegDays  = 7 - meatDays;
+  const vegDays  = DAYS_PER_WEEK - meatDays;
   const weeklyKg =
     meatDays * DIET_FACTORS.redMeatDay.kgCo2ePerDay +
     vegDays  * DIET_FACTORS.vegDay.kgCo2ePerDay;
   const dairyAddon = dairyHeavy ? DIET_FACTORS.dairyHeavyAddonPerYear.kgCo2e : 0;
-  return weeklyKg * 52 + dairyAddon;
+  return weeklyKg * WEEKS_PER_YEAR + dairyAddon;
 }
 
 function computeEnergy(energy: UserState['energy'], region: string): number {
@@ -45,7 +49,7 @@ function computeEnergy(energy: UserState['energy'], region: string): number {
     factor = HEATING_FACTORS[heating].kgCo2ePerKwh;
   }
 
-  return kwhPerMonth * 12 * factor;
+  return kwhPerMonth * MONTHS_PER_YEAR * factor;
 }
 
 function computeGoods(profile: Profile): number {
@@ -68,7 +72,7 @@ export function computeSignals(profile: Profile, state: UserState): Signals {
   const energy    = computeEnergy(state.energy, profile.region);
   const goods     = computeGoods(profile);
 
-  const annualCo2eByCategory = { transport, diet, energy, goods } as Record<Category, number>;
+  const annualCo2eByCategory: Record<Category, number> = { transport, diet, energy, goods };
   const totalAnnualCo2e = transport + diet + energy + goods;
   const top = topCategory(annualCo2eByCategory);
 
