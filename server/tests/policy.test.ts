@@ -114,3 +114,45 @@ describe('policy — projectedTotalCo2e', () => {
     expect(plan.projectedTotalCo2e).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('policy — never recommends a net-negative action', () => {
+  it('skips heat-pump-upgrade on a carbon-intensive grid where it would increase emissions', () => {
+    // India grid (0.708 kgCO₂e/kWh) / COP 3 ≈ 0.236 > gas (0.18288) → heat pump is worse
+    const profile: Profile = { householdSize: 2, region: 'India', homeType: 'house' };
+    const state: UserState = {
+      transport: { carType: 'petrol', kmPerWeek: 150, flightsPerYear: { shortHaul: 2, longHaul: 1 }, cyclesRegularly: false },
+      diet: { redMeatDaysPerWeek: 4, dairyHeavy: false, vegetarian: false },
+      energy: { kwhPerMonth: 300, heating: 'gas' },
+    };
+    const signals = computeSignals(profile, state);
+    const plan = decide(profile, state, signals);
+
+    // Not in recommendations…
+    expect(plan.recommendations.find(r => r.id === 'heat-pump-upgrade')).toBeUndefined();
+    // …and the trace explains why it was skipped
+    const step = plan.trace.find(t => t.ruleId === 'heat-pump-upgrade');
+    expect(step?.fired).toBe(false);
+    expect(step?.reason).toContain('would not beat gas');
+
+    // No recommendation should ever carry a non-positive saving
+    for (const rec of plan.recommendations) {
+      expect(rec.annualSavingCo2e).toBeGreaterThan(0);
+    }
+  });
+
+  it('still fires heat-pump-upgrade on a clean grid where it genuinely saves', () => {
+    // UK grid (0.233) / COP 3 ≈ 0.078 < gas (0.18288) → heat pump wins
+    const profile: Profile = { householdSize: 2, region: 'United Kingdom', homeType: 'house' };
+    const state: UserState = {
+      transport: { carType: 'none', kmPerWeek: 0, flightsPerYear: { shortHaul: 0, longHaul: 0 }, cyclesRegularly: false },
+      diet: { redMeatDaysPerWeek: 0, dairyHeavy: false, vegetarian: true },
+      energy: { kwhPerMonth: 400, heating: 'gas' },
+    };
+    const signals = computeSignals(profile, state);
+    const plan = decide(profile, state, signals);
+
+    const rec = plan.recommendations.find(r => r.id === 'heat-pump-upgrade');
+    expect(rec).toBeDefined();
+    expect(rec!.annualSavingCo2e).toBeGreaterThan(0);
+  });
+});

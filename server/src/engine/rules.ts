@@ -253,6 +253,16 @@ export const RULES: Rule[] = [
       const gasFactor = HEATING_FACTORS.gas.kgCo2ePerKwh;
       const hpFactor  = grid.kgCo2ePerKwh / HEATING_FACTORS.heatpump.cop;
       const saving = Math.round(kwhPerMonth * MONTHS_PER_YEAR * (gasFactor - hpFactor));
+
+      // On a carbon-intensive grid a heat pump can emit more than gas. Never
+      // recommend an action that would increase emissions.
+      if (saving <= 0) {
+        return {
+          fired: false,
+          traceReason: `On the ${profile.region} grid (${grid.kgCo2ePerKwh} kgCO₂e/kWh) a heat pump at COP ${HEATING_FACTORS.heatpump.cop} (${hpFactor.toFixed(4)} kgCO₂e/kWh) would not beat gas (${gasFactor} kgCO₂e/kWh) — rule skipped.`,
+        };
+      }
+
       return {
         fired: true,
         traceReason: `Gas heating at ${gasFactor} kgCO₂e/kWh vs heat pump at ${hpFactor.toFixed(4)} kgCO₂e/kWh — saves ${fmt(saving)}/yr.`,

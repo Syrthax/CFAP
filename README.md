@@ -186,11 +186,13 @@ server/tests/footprint.test.ts    8 tests
   ✓ carType=none zeroes transport
   ✓ Vegetarian flag overrides redMeatDaysPerWeek
 
-server/tests/policy.test.ts       6 tests
+server/tests/policy.test.ts       8 tests
   ✓ Cyclist skips shift-short-car-trips with reason in trace
   ✓ Vegetarian gets no diet recommendations
   ✓ topCategory multiplier 1.5× verified numerically
   ✓ projectedTotalCo2e ≥ 0
+  ✓ Heat-pump skipped on a dirty grid where it would raise emissions
+  ✓ No recommendation ever carries a non-positive saving
 
 server/tests/validate.test.ts    15 tests
   ✓ Valid body accepted
